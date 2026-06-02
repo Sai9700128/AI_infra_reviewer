@@ -1,0 +1,40 @@
+name: AI Infrastructure Review
+
+on:
+    pull_request:
+        paths:
+            - "**.tf" # only triggers when .tf files change
+
+permissions:
+    contents: read
+    pull-requests: write # needed to post PR comments
+
+jobs:
+    review:
+        name: Review Terraform Changes
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # full history needed for accurate diff
+
+            - name: Get Terraform diff
+              id: diff
+              run: |
+                  git diff origin/${{ github.base_ref }}...HEAD -- '*.tf' > tf.diff
+                  echo "Diff size: $(wc -l < tf.diff) lines"
+                  cat tf.diff
+
+            - name: Post PR comment
+              uses: actions/github-script@v7
+              with:
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  script: |
+                      github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: `## 🔍 AI Infrastructure Review\n\n⚙️ Pipeline is live. Static analysis and AI review coming soon.`
+                      })
