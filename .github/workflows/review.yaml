@@ -3,11 +3,11 @@ name: AI Infrastructure Review
 on:
     pull_request:
         paths:
-            - "**.tf" # only triggers when .tf files change
+            - "**.tf"
 
 permissions:
     contents: read
-    pull-requests: write # needed to post PR comments
+    pull-requests: write
 
 jobs:
     review:
@@ -18,7 +18,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
               with:
-                  fetch-depth: 0 # full history needed for accurate diff
+                  fetch-depth: 0
 
             - name: Get Terraform diff
               id: diff
@@ -27,14 +27,111 @@ jobs:
                   echo "Diff size: $(wc -l < tf.diff) lines"
                   cat tf.diff
 
+            # ==========================================================================================================
+            # ── tflint ──────────────────────────────────────────────────────────
+            - name: Install tflint
+              run: |
+                  curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+            - name: Init tflint (install AWS plugin)
+              run: tflint --init
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Run tflint
+              id: tflint
+              run: |
+                  tflint --format json --recursive > tflint_results.json || true
+                  echo "tflint output:"
+                  cat tflint_results.json
+
+            # ── Checkov ─────────────────────────────────────────────────────────
+            - name: Install Checkov
+              run: pip install checkov --quiet
+
+            - name: Run Checkov
+              id: checkov
+              run: |
+                  checkov -d . \
+                    --output json \
+                    --quiet \
+                    --soft-fail \
+                    > checkov_results.json || true
+                  echo "Checkov output:"
+                  cat checkov_results.json
+
+            # ── Post PR comment ──────────────────────────────────────────────────
             - name: Post PR comment
               uses: actions/github-script@v7
               with:
                   github-token: ${{ secrets.GITHUB_TOKEN }}
                   script: |
+                      const fs = require('fs');
+
+                      // ── parse tflint ──
+                      let tflintFindings = [];
+                      try {
+                        const raw = JSON.parse(fs.readFileSync('tflint_results.json', 'utf8'));
+                        tflintFindings = (raw.issues || []).map(i => ({
+                          severity: i.rule?.severity === 'error' ? '🔴 ERROR' : '🟡 WARNING',
+                          file: i.range?.filename || 'unknown',
+                          line: i.range?.start?.line || '-',
+                          message: i.message
+                        }));
+                      } catch (e) {
+                        console.log('tflint parse error:', e.message);
+                      }
+
+                      // ── parse checkov ──
+                      let checkovFindings = [];
+                      try {
+                        const raw = JSON.parse(fs.readFileSync('checkov_results.json', 'utf8'));
+                        const results = raw.results || raw;
+                        const failed = Array.isArray(results)
+                          ? results.flatMap(r => r.results?.failed_checks || [])
+                          : (results.failed_checks || []);
+                        checkovFindings = failed.map(c => ({
+                          severity: c.severity === 'HIGH' ? '🔴 HIGH' : c.severity === 'MEDIUM' ? '🟡 MEDIUM' : '🔵 LOW',
+                          file: c.repo_file_path || c.file_path || 'unknown',
+                          line: (c.file_line_range || ['-'])[0],
+                          message: c.check_name
+                        }));
+                      } catch (e) {
+                        console.log('checkov parse error:', e.message);
+                      }
+
+                      // ── build comment ──
+                      let body = `## 🔍 AI Infrastructure Review\n\n`;
+
+                      // tflint section
+                      body += `### 🔧 tflint — Syntax & Validity\n`;
+                      if (tflintFindings.length === 0) {
+                        body += `✅ No issues found\n`;
+                      } else {
+                        body += `| Severity | File | Line | Issue |\n|---|---|---|---|\n`;
+                        tflintFindings.forEach(f => {
+                          body += `| ${f.severity} | \`${f.file}\` | ${f.line} | ${f.message} |\n`;
+                        });
+                      }
+
+                      body += `\n### 🛡️ Checkov — Security & Compliance\n`;
+                      if (checkovFindings.length === 0) {
+                        body += `✅ No issues found\n`;
+                      } else {
+                        body += `| Severity | File | Line | Issue |\n|---|---|---|---|\n`;
+                        checkovFindings.slice(0, 10).forEach(f => {
+                          body += `| ${f.severity} | \`${f.file}\` | ${f.line} | ${f.message} |\n`;
+                        });
+                        if (checkovFindings.length > 10) {
+                          body += `\n_...and ${checkovFindings.length - 10} more findings_\n`;
+                        }
+                      }
+
+                      body += `\n---\n_🤖 AI review coming in next iteration_`;
+
                       github.rest.issues.createComment({
                         issue_number: context.issue.number,
                         owner: context.repo.owner,
                         repo: context.repo.repo,
-                        body: `## 🔍 AI Infrastructure Review\n\n⚙️ Pipeline is live. Static analysis and AI review coming soon.`
-                      })
+                        body
+                      });
