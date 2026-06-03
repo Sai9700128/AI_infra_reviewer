@@ -5,6 +5,12 @@ on:
     paths:
       - "**.tf"
   workflow_dispatch:
+  workflow_call: # To reuse this workflow in other repositories or workflows
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      GITHUB_TOKEN:
+        required: true
 
 permissions:
   contents: read
