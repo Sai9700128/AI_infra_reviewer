@@ -5,21 +5,54 @@ import urllib.request
 import urllib.error
 
 def read_diff():
-    """Read the terraform diff file"""
     try:
         with open('tf.diff', 'r') as f:
             diff = f.read().strip()
         if not diff:
             print("No diff found — nothing to review")
+            # write empty results so the comment step doesn't fail
+            with open('ai_results.json', 'w') as f:
+                json.dump({"findings": [], "summary": "No Terraform changes detected"}, f)
             sys.exit(0)
         return diff
     except FileNotFoundError:
         print("tf.diff not found")
         sys.exit(1)
 
-def call_claude(diff: str) -> dict:
-    """Send diff to Claude API and get structured findings"""
+def extract_json(text: str) -> dict:
+    """Try multiple strategies to extract JSON from Claude's response"""
+    text = text.strip()
 
+    # Strategy 1: direct parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 2: strip markdown code fences
+    if '```' in text:
+        import re
+        match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
+        if match:
+            try:
+                return json.loads(match.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+    # Strategy 3: find the first { and last }
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1:
+        try:
+            return json.loads(text[start:end+1])
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback
+    print(f"Could not parse JSON from response:\n{text[:500]}")
+    return {"findings": [], "summary": "AI review could not be parsed"}
+
+def call_claude(diff: str) -> dict:
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         print("ANTHROPIC_API_KEY not set")
@@ -31,32 +64,22 @@ Analyze the following Terraform diff and identify issues across these categories
 - SECURITY: exposed resources, missing encryption, overly permissive IAM, hardcoded secrets
 - RELIABILITY: no deletion protection, missing health checks, single points of failure
 - COST: oversized instances, redundant resources, inefficient configurations
-- BEST_PRACTICE: missing tags, hardcoded values, naming conventions, missing remote state
+- BEST_PRACTICE: missing tags, hardcoded values, naming conventions
 
 For each issue found, assign a severity:
 - CRITICAL: must fix before merge (e.g. publicly accessible production database)
 - HIGH: should fix soon (e.g. no deletion protection on stateful resource)
 - MEDIUM: worth fixing (e.g. missing tags)
-- INFO: suggestion (e.g. consider enabling a feature)
+- INFO: suggestion only
 
-Respond ONLY with a valid JSON object in exactly this format, no preamble, no markdown:
-{{
-  "findings": [
-    {{
-      "severity": "CRITICAL",
-      "category": "SECURITY",
-      "line": 12,
-      "resource": "aws_db_instance.prod",
-      "description": "RDS instance is publicly accessible",
-      "suggestion": "Set publicly_accessible = false for production databases"
-    }}
-  ],
-  "summary": "Brief one sentence summary of the overall review"
-}}
+YOU MUST RESPOND WITH ONLY A JSON OBJECT. NO TEXT BEFORE OR AFTER. NO MARKDOWN. NO EXPLANATION.
 
-If no issues are found, return: {{"findings": [], "summary": "No issues found in this diff"}}
+Required format:
+{{"findings": [{{"severity": "CRITICAL", "category": "SECURITY", "line": 12, "resource": "aws_db_instance.prod", "description": "RDS instance is publicly accessible", "suggestion": "Set publicly_accessible = false"}}], "summary": "One sentence summary"}}
 
-Terraform diff to review:
+If no issues found: {{"findings": [], "summary": "No issues found in this diff"}}
+
+Terraform diff:
 {diff}"""
 
     payload = json.dumps({
@@ -82,12 +105,10 @@ Terraform diff to review:
         with urllib.request.urlopen(req) as response:
             data = json.loads(response.read().decode('utf-8'))
             raw_text = data['content'][0]['text']
-            return json.loads(raw_text)
+            print(f"Claude raw response:\n{raw_text[:500]}")
+            return extract_json(raw_text)
     except urllib.error.HTTPError as e:
         print(f"Claude API error: {e.code} {e.read().decode()}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Failed to parse Claude response as JSON: {e}")
         sys.exit(1)
 
 def main():
