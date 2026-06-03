@@ -1,4 +1,4 @@
-Downloads the OPA binary into the Github Actions runner , OPA isn't pre-installed so we fetch it at runtime.
+# Downloads the OPA binary into the Github Actions runner , OPA isn't pre-installed so we fetch it at runtime.
 
 def install_opa():
     opa_url = "https://openpolicyagent.org/downloads/v0.68.0/opa_linux_amd64_static"
