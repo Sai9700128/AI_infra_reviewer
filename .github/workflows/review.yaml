@@ -5,6 +5,10 @@ on:
     paths:
       - "**.tf"
   workflow_dispatch:
+  workflow_call: # To reuse this workflow in other repositories or workflows
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
 
 permissions:
   contents: read
