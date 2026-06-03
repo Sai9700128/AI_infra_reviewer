@@ -1,32 +1,33 @@
 package infra.review
 
-import future.keywords.if
-import future.keywords.in
+# default: deny
+default allow = false
 
-
-default allow := false
-
-allow if {
+# allow only if no critical findings
+allow {
   count(critical_findings) == 0
 }
 
-
-critical_findings[msg] if {
+# collect critical findings
+critical_findings[msg] {
   finding := input.findings[_]
   finding.severity == "CRITICAL"
-  msg := sprintf("CRITICAL [%s] %s — %s", [
-    finding.category,
-    finding.resource,
-    finding.description
-  ])
+  msg := sprintf("CRITICAL [%s] %s - %s", [finding.category, finding.resource, finding.description])
 }
 
-high_findings[msg] if {
+# collect high findings
+high_findings[msg] {
   finding := input.findings[_]
   finding.severity == "HIGH"
-  msg := sprintf("HIGH [%s] %s — %s", [
-    finding.category,
-    finding.resource,
-    finding.description
-  ])
+  msg := sprintf("HIGH [%s] %s - %s", [finding.category, finding.resource, finding.description])
 }
+
+# summary object
+summary = {
+  "allow": allow,
+  "critical_count": count(critical_findings),
+  "high_count": count(high_findings),
+  "critical_findings": critical_findings,
+  "high_findings": high_findings
+}
+
