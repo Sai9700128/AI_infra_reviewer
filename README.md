@@ -1,4 +1,4 @@
-# ai-infra-reviewer
+# AI-infra-reviewer
 
 An AI-powered Terraform code review pipeline that intercepts infrastructure PRs, runs static analysis and LLM-based reasoning, and blocks merges on critical findings via OPA policy gates.
 
@@ -76,7 +76,6 @@ Pipeline blocked: 1 CRITICAL finding requires resolution before merge.
 ```
 
 ---
-
 
 ## Repo Structure
 
