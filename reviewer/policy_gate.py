@@ -5,7 +5,7 @@ def install_opa():
     urllib.request.urlretrieve(opa_url, "/usr/local/bin/opa")
     os.chmod("/usr/local/bin/opa", 0o755)
 
-Reads Claude's output from the previos step. This is what gets passed to OPA as input.
+# Reads Claude's output from the previos step. This is what gets passed to OPA as input.
 
 def load_findings():
     with open('ai_results.json', 'r') as f:
