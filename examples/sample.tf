@@ -2,7 +2,7 @@
 
 resource "aws_s3_bucket" "example1" {
   bucket = "my-test-bucket"
-  acl    = "public-read" # Checkov: bucket publicly readable
+  # acl    = "public-read" # Checkov: bucket publicly readable
 }
 
 resource "aws_db_instance" "prod" {
