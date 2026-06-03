@@ -1,3 +1,3 @@
 resource "aws_s3_bucket" "example" {
-  bucket = "my-test-bucket"
+  bucket = "my-test-bucket-12345"
 }
