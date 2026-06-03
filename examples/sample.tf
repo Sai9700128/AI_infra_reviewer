@@ -1,6 +1,6 @@
 # Contains bad patterns to test the pipeline
 
-resource "aws_s3_bucket" "example" {
+resource "aws_s3_bucket" "example1" {
   bucket = "my-test-bucket"
   acl    = "public-read" # Checkov: bucket publicly readable
 }
