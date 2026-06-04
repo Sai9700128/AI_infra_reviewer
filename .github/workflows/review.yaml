@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Sai9700128/AI_infra_reviewer
-          path: ai-infra-reviewer
+          path: AI_infra_reviewer
 
       - name: Run AI review
         env:
