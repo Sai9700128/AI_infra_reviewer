@@ -79,9 +79,9 @@ jobs:
 
       # ── OPA Policy Gate ──────────────────────────────────────────────────
       - name: Run OPA policy gate
-        run: python AI_infra_reviewer/reviewer/policy_gate.py
         env:
           POLICY_PATH: AI_infra_reviewer/policies/review_policy.rego
+        run: python AI_infra_reviewer/reviewer/policy_gate.py
 
       # ── Post PR comment ──────────────────────────────────────────────────
       - name: Post PR comment
