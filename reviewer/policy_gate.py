@@ -30,11 +30,15 @@ def run_opa(findings):
         json.dump(findings, f)
     print("Running OPA evaluation...")
 
+    # new — reads from env var, falls back to default
+policy_path = os.environ.get('POLICY_PATH', 'policies/review_policy.rego')
+
+
     result = subprocess.run(
         [
             "opa", "eval",
             "--input", "opa_input.json",
-            "--data", "policies/review_policy.rego",
+            "--data", policy_path,
             "--format", "json",
             "data.infra.review.summary"
         ],
