@@ -66,6 +66,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Checkout ai-infra-reviewer scripts
+        uses: actions/checkout@v4
+        with:
+          repository: Sai9700128/AI_infra_reviewer
+          path: ai-infra-reviewer
+
       - name: Run AI review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
