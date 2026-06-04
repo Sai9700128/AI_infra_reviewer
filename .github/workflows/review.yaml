@@ -75,11 +75,11 @@ jobs:
       - name: Run AI review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python reviewer/ai_review.py
+        run: python AI_infra_reviewer/reviewer/ai_review.py
 
       # ── OPA Policy Gate ──────────────────────────────────────────────────
       - name: Run OPA policy gate
-        run: python reviewer/policy_gate.py
+        run: python AI_infra_reviewer/reviewer/policy_gate.py
 
       # ── Post PR comment ──────────────────────────────────────────────────
       - name: Post PR comment
