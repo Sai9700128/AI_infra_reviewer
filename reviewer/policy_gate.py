@@ -31,7 +31,7 @@ def run_opa(findings):
     print("Running OPA evaluation...")
 
     # new — reads from env var, falls back to default
-policy_path = os.environ.get('POLICY_PATH', 'policies/review_policy.rego')
+    policy_path = os.environ.get('POLICY_PATH', 'policies/review_policy.rego')
 
 
     result = subprocess.run(
